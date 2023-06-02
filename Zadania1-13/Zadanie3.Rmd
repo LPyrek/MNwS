@@ -1,0 +1,53 @@
+---
+title: "Zadanie3"
+author: "Łukasz Pyrek"
+date: "2023-05-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+```
+Za pomocą odpowiednich symulacji zbadać moc testu Kołmogorowa-Smirnowa w przypadku, gdy
+rozważane próbki danych pochodzą w rozkładów 𝜒
+2 o różnej liczbie stopni swobody. Do celów
+symulacji proszę przesunąć generowane dane tak, by miały tę samą wartość oczekiwaną. Uzyskane
+wyniki należy przedstawić na odpowiednich wykresach ilustrujących moce testów z uwzględnieniem: <br />
+- liczby danych (można rozważać różne liczebności w każdej z próbek),<br />
+- liczby stopni swobody. <br />
+```{r}
+library(ggplot2)
+power_fun <- function(n, df1, df2){
+  mean(
+    sapply(1:1000, function(i) {
+      sample1 = (rchisq(n, df1) - df1)/sqrt(2*df1)
+      sample2 = (rchisq(n, df2) - df2)/sqrt(2*df2)
+      ks.test(sample1,sample2)$p.val < 0.05
+    })
+  )
+}
+df1_seq = c(3,5,10,25,50)
+df2_seq = c(3,5,10,25,50,100)
+n_seq = c(seq(5,100,5),seq(125,300,25))
+
+for(df1 in df1_seq){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df2_seq,
+        power = sapply(df2_seq, function(df2) power_fun(n, df1, df2))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=power, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(paste("liczba stopni swobody pierwszego rozkładu:",df1)) + labs(col = "Stopnie swobody drugiego rozkładu")
+  print(plot)
+}
+
+```

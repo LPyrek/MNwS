@@ -1,0 +1,125 @@
+---
+title: "Zadanie2"
+author: "Łukasz Pyrek"
+date: "2023-05-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+Za pomocą odpowiednich symulacji zbadać odsetek odrzuceń prawdziwej hipotezy głównej (tzn. błąd
+I rodzaju) w teście Kołmogorowa i teście 𝜒
+2 w przypadku weryfikacji zgodności z rozkładem 𝜒
+2 o
+różnych stopniach swobody, tzn. generować dane pochodzące z rozkładu 𝜒
+2 o 𝑘 stopniach swobody i
+weryfikować hipotezę, że dane mają rozkład 𝜒
+2 o 𝑘 st. swobody. Należy porównać wyniki
+klasycznego sposobu testowania i testowania z wykorzystaniem PIT (probability integral transform).
+Uzyskane wyniki należy przedstawić na odpowiednich wykresach ilustrujących moce testów z
+uwzględnieniem: <br />
+- liczby danych, <br />
+- liczby stopni swobody generowanego rozkładu <br />
+```{r}
+library(DescTools)
+library(ggplot2)
+library(zoo)
+
+
+power_fun <- function(test, n, df, pit = FALSE){
+  if(toString(test) == 'ks.test'){
+    if(!pit){
+      result <- mean(
+                  sapply(1:1000, function(i){
+                    ks.test(rchisq(n,df),'pchisq', df)$p.value < 0.05}))
+    } else{
+      result <- mean(
+                  sapply(1:1000, function(i){
+                    ks.test(pchisq(rchisq(n,df),df),'punif',0,1)$p.value < 0.05}))
+    }
+    return(result)
+  }
+  if(toString(test) == 'chisq'){
+    if(!pit){
+      result <- mean(
+                  sapply(1:1000, function(i){
+                    sample <- rchisq(n,df)
+                    min_ <- min(sample)
+                    max_ <- max(sample)
+                    no_of_bins <- round(sqrt(n))
+                    bin_width <- round((max_-min_)/no_of_bins,2)
+                    h <- hist(sample,breaks=c(seq(min_,max_+bin_width,bin_width)), plot = FALSE)
+                    breaks_cdf <- pchisq(h$breaks,df)
+                    probs <- rollapply(breaks_cdf, 2, function(x) x[2] - x[1])
+                    chisq.test(h$counts, p=probs, rescale.p=TRUE)$p.value < 0.05
+                  }))
+    } else{
+      result <- mean(
+                  sapply(1:1000, function(i){
+                    sample <- pchisq(rchisq(n,df),df)
+                    min_ <- min(sample)
+                    max_ <- max(sample)
+                    no_of_bins <- round(sqrt(n))
+                    bin_width <- round((max_-min_)/no_of_bins,2)
+                    h <- hist(sample,breaks=c(seq(min_,max_+bin_width,bin_width)), plot = FALSE)
+                    breaks_cdf <- punif(h$breaks,0,1)
+                    probs <- rollapply(breaks_cdf, 2, function(x) x[2] - x[1])
+                    chisq.test(h$counts, p=probs, rescale.p=TRUE)$p.value < 0.05
+                  }))
+    }
+    return(result)
+  }
+}
+
+
+n_seq = c(seq(5,100,5),seq(125,300,25))
+df_seq = c(3,5,10,30)
+
+for(test in c('chisq','ks.test')){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df_seq,
+        odsetek = sapply(df_seq, function(df) power_fun(test, n, df))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=odsetek, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(test) + labs(col = "Stopnie swobody")
+  print(plot)
+  ### PIT
+
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df_seq,
+        odsetek = sapply(df_seq, function(df) power_fun(test, n, df, FALSE))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=odsetek, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(paste(test,'PIT')) + labs(col = "Stopnie swobody")
+  print(plot)
+}
+
+
+```
+<br />
+H0: próbka pochodzi z rozkładu chi kwadrat <br />
+H1: próbka nie pochodzi z rozkładu chi kwadrat <br />
+Jak widać test chi kwadrat częściej popełnia błąd I rodzaju przy poziomie istotności 5%.
+Test Kołmogorowa w tej sytuacji zachowuje się wzorowo(odsetek popełnienia błędu I rodzaju jest w przybliżeniu równy poziomie istotności)
+W tym przypadku wykorzystanie PIT do testowania hipotez nie zmienia znacząco wyników.

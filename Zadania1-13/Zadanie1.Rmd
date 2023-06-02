@@ -1,0 +1,73 @@
+---
+title: "Zadanie1"
+author: "Łukasz Pyrek"
+date: "2023-05-01"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+```
+Za pomocą odpowiednich symulacji porównać moce testu Shapiro-Wilka, testu Kołmogorowa i testu 𝜒2
+(z hipotezą główną, że cecha ma rozkład normalny) w przypadku, gdy dane pochodzą z rozkładu
+𝑡-Studenta lub innej klasy rozkładów symetrycznych (uwaga: żeby wyniki były porównywalne trzeba
+pamiętać o standaryzacji danych). Uzyskane wyniki należy przedstawić na odpowiednich wykresach
+ilustrujących moce testów z uwzględnieniem: <br />
+- liczby danych, <br />
+- liczby stopni swobody generowanego rozkładu t-Studenta lub innych parametrów wybranego rozkładu.
+```{r}
+library(DescTools)
+library(ggplot2)
+
+power_fun <- function(test, n, df){
+
+  if(toString(test) == 'ks.test'){
+    result <- mean(
+                sapply(1:10000, function(i){
+                  sample <- rt(n,df)
+                  sample <- (sample - mean(sample))/sd(sample)
+                  ks.test(sample,'pnorm')$p.value < 0.05}))
+    return(result)
+  }
+  fun_test <- match.fun(test)
+  mean(
+    sapply(1:10000, function(i) {
+      sample <- rt(n,df)
+      sample <- (sample - mean(sample))/sd(sample)
+      fun_test(sample)$p.val < 0.05
+    })
+  )
+}
+
+n_seq = c(seq(5,100,5),seq(125,300,25))
+df_seq = c(5,10,30)
+
+for(test in c('shapiro.test','PearsonTest','ks.test')){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df_seq,
+        power = sapply(df_seq, function(df) power_fun(test, n, df))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=power, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(test) + labs(col = "Stopnie swobody")
+  print(plot)
+}
+
+```
+<br />
+Jak widać test shapiro-wilka ma najwiekszą moc testu.
+Mozna również zauważyć że wraz ze wzrostem  liczebności próby wzrasta moc testu, <br />
+oraz że wraz ze wzrostem liczby stopni swobody moc testu spada, <br />
+co ma sens gdyż wraz ze wzrostem liczby swobody rozkład t-studenta co raz bardziej <br />
+przypomina rozkład normalny przez co testowi trudniej wykryć róznice.

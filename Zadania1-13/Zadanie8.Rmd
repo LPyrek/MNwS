@@ -1,0 +1,73 @@
+---
+title: "Zadanie8"
+author: "Łukasz Pyrek"
+date: "2023-05-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, cache = TRUE)
+```
+Za pomocą odpowiednich symulacji zbadać moc testu Kołmogorowa i testu Kołmogorowa z
+wykorzystaniem PIT (probability integral transform), z hipotezą główną, że cecha ma rozkład
+normalny w przypadku, gdy dane pochodzą z rozkładu 𝑡-Studenta lub z rozkładu 𝜒2
+(uwaga: żeby
+wyniki były porównywalne trzeba pamiętać o standaryzacji danych). Uzyskane wyniki należy
+przedstawić na odpowiednich wykresach ilustrujących moce testów z uwzględnieniem: <br />
+- liczby danych, <br />
+- liczby stopni swobody generowanego rozkładu t-Studenta, 𝜒2
+```{r}
+library(ggplot2)
+power_fun <- function(n,df,pit=FALSE){
+    if(!pit){
+      result <- mean(
+                  sapply(1:1000, function(i){
+                    sample <- rt(n,df)
+                    sample <- (sample - mean(sample))/sd(sample)
+                    ks.test(sample,'pnorm')$p.value < 0.05}))
+    } else{
+      result <- mean(
+                  sapply(1:1000, function(i){
+                    sample <- rt(n,df)
+                    sample <- (sample - mean(sample))/sd(sample)
+                    ks.test(pnorm(sample,0,1),'punif',0,1)$p.value < 0.05}))
+    }
+}
+
+n_seq = c(seq(5,100,5),seq(125,300,25))
+df_seq = c(3,5,10,30)
+data_list <-
+  lapply(n_seq, function(n){
+    data.frame(
+      n = n,
+      df = df_seq,
+      odsetek = sapply(df_seq, function(df) power_fun(n, df))
+    )  
+  })
+data <- do.call(rbind, data_list)
+ggplot(data = data, aes(x=n,y=odsetek, col = factor(df))) +
+  geom_line() + 
+  geom_hline(yintercept=0.05, linetype='dotted') + 
+  geom_hline(yintercept=1, linetype='dotted') +
+  ggtitle("KS test") + labs(col = "Stopnie swobody")
+
+### PIT
+data_list_pit <-
+  lapply(n_seq, function(n){
+    data.frame(
+      n = n,
+      df = df_seq,
+      odsetek = sapply(df_seq, function(df) power_fun(n, df, TRUE))
+    )  
+  })
+data_pit <- do.call(rbind, data_list_pit)
+ggplot(data = data_pit, aes(x=n,y=odsetek, col = factor(df))) +
+  geom_line() + 
+  geom_hline(yintercept=0.05, linetype='dotted') + 
+  geom_hline(yintercept=1, linetype='dotted') +
+  ggtitle("KS test PIT") + labs(col = "Stopnie swobody")
+
+
+```
+<br />
+Nie widać znaczących różnic.

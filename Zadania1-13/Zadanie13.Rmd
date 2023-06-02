@@ -1,0 +1,54 @@
+---
+title: "Zadanie13"
+author: "Łukasz Pyrek"
+date: "2023-06-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+
+Za pomocą odpowiednich symulacji zbadać odsetek odrzuceń prawdziwej hipotezy głównej w teście
+Kołmogorowa-Smirnowa w przypadku, gdy rozważane próbki pochodzą z tego samego rozkładu.
+Rozważyć dwa różne rozkłady asymetryczne. W badaniu uwzględnić różną liczebność próbek.
+Uzyskane wyniki należy przedstawić na odpowiednich wykresach ilustrujących wyniki z
+uwzględnieniem: <br />
+- liczby danych (można rozważać różne liczebności w każdej z próbek), <br />
+- parametrów rozważanych rozkładów.
+
+```{r}
+library(ggplot2)
+power_fun <- function(n1, n2, df){
+  mean(
+      sapply(1:1000, function(i){
+        sample1 <- rchisq(n1,df)
+        sample2 <- rchisq(n2,df)
+        ks.test(sample1,sample2)$p.value < 0.05}))
+}
+
+n1_seq <- c(3,10,30,100)
+n2_seq <- c(3,10,30,100)
+df_seq <- seq(1,100,1)
+for(n1 in n1_seq){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(df_seq, function(df){
+      data.frame(
+        df = df,
+        n = n2_seq,
+        power = sapply(n2_seq, function(n2) power_fun(n1, n2, df))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=df,y=power, col = factor(n))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(paste("Liczebność pierwszego rozkładu:",n1)) + labs(col = "Liczebność drugiego rozkładu")
+  print(plot)
+}
+
+
+```

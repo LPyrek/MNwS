@@ -1,0 +1,70 @@
+---
+title: "Zadanie6"
+author: "Łukasz Pyrek"
+date: "2023-05-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+Za pomocą odpowiednich symulacji zbadać moc testu Kołmogorowa, testu Lillieforsa i testu
+Andersona-Darlinga (z hipotezą główną, że cecha ma rozkład normalny) w przypadku, gdy dane
+pochodzą z rozkładu 𝑡-Studenta (uwaga: żeby wyniki były porównywalne trzeba pamiętać o
+standaryzacji danych). Uzyskane wyniki należy przedstawić na odpowiednich wykresach ilustrujących
+moce testów z uwzględnieniem:
+- liczby danych,
+- liczby stopni swobody generowanego rozkładu t-Studenta.
+
+```{r}
+library(nortest)
+library(ggplot2)
+
+power_fun <- function(test, n, df){
+
+  if(toString(test) == 'ks.test'){
+    result <- mean(
+                sapply(1:1000, function(i){
+                  sample <- rt(n,df)
+                  sample <- (sample - mean(sample))/sd(sample)
+                  ks.test(sample,'pnorm')$p.value < 0.05}))
+    return(result)
+  }
+  fun_test <- match.fun(test)
+  mean(
+    sapply(1:1000, function(i) {
+      sample <- rt(n,df)
+      sample <- (sample - mean(sample))/sd(sample)
+      fun_test(sample)$p.val < 0.05
+    })
+  )
+}
+
+n_seq = c(8,seq(10,100,5),seq(125,300,25))
+df_seq = c(3,5,10,30)
+
+for(test in c('lillie.test','ad.test','ks.test')){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df_seq,
+        power = sapply(df_seq, function(df) power_fun(test, n, df))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=power, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(test) + labs(col = "Stopnie swobody")
+  print(plot)
+}
+
+
+```
+<br />
+Testy Lillieforsa oraz Andersona-Darlinga mają o wiele większą moc niż test Kołmogorowa.
+Test Lillieforsa ma wiekszą moc w prawie kazdym z przypadków, jednakże w sytuacji dla 10 stopnii swobody lepiej wypadł test Andersona-.

@@ -1,0 +1,56 @@
+---
+title: "Zadanie11"
+author: "Łukasz Pyrek"
+date: "2023-06-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+
+Za pomocą odpowiednich symulacji zbadać moc testów: Jarque-Bera, Shapiro-Wilka i Lillieforsa w
+przypadku, gdy dane pochodzą z rozkładu 𝑡-Studenta. Uzyskane wyniki należy przedstawić na
+odpowiednich wykresach ilustrujących moce testów z uwzględnieniem: <br />
+- liczby danych, <br />
+- liczby stopni swobody generowanego rozkładu t-Studenta.
+
+```{r}
+library(nortest)
+library(tseries)
+library(ggplot2)
+
+
+power_fun <- function(test, n, df){
+  fun_test <- match.fun(test)
+  mean(
+    sapply(1:1000, function(i) {
+      sample <- rt(n,df)
+      fun_test(sample)$p.val < 0.05
+    })
+  )
+}
+
+n_seq = c(seq(5,100,5),seq(125,300,25))
+df_seq = c(5,10,30)
+
+for(test in c('jarque.bera.test','shapiro.test','lillie.test')){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df_seq,
+        power = sapply(df_seq, function(df) power_fun(test, n, df))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=power, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(test) + labs(col = "Stopnie swobody")
+  print(plot)
+}
+```

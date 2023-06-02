@@ -1,0 +1,142 @@
+---
+title: "Zadanie9"
+author: "Łukasz Pyrek"
+date: "2023-05-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+Za pomocą odpowiednich symulacji zbadać odsetek odrzuceń prawdziwej hipotezy głównej (tzn. błąd
+I rodzaju) w teście Kołmogorowa w przypadku weryfikacji zgodności z rozkładem NIG oraz z
+rozkładem gamma o różnych wartościach parametrów. Należy porównać wyniki klasycznego sposobu
+testowania i testowania z wykorzystaniem PIT (probability integral transform). Uzyskane wyniki
+należy przedstawić na odpowiednich wykresach ilustrujących moce testów z uwzględnieniem: <br />
+- liczby danych, <br />
+- parametrów generowanego rozkładu.
+```{r}
+library(fBasics)
+library(ggplot2)
+power_nig <- function(n,alpha,beta,delta){
+  mean(
+    sapply(1:500, function(i){
+      ks.test(rnig(n,alpha,beta,delta),'pnig',alpha,beta,delta)$p.value < 0.05}))
+}
+power_nig_pit <- function(n,alpha,beta,delta){
+    mean(
+    sapply(1:500, function(i){
+      ks.test(pnig(rnig(n,alpha,beta,delta),alpha,beta,delta),'punif',0,1)$p.value < 0.05}))
+}
+power_gamma <- function(n,shape,rate){
+  mean(
+    sapply(1:1000, function(i){
+      ks.test(rgamma(n,shape,rate),'pgamma',shape,rate)$p.value < 0.05}))
+}
+power_gamma_pit <- function(n,shape,rate){
+  mean(
+    sapply(1:1000, function(i){
+      ks.test(pgamma(rgamma(n,shape,rate),shape,rate),'punif',0,1)$p.value < 0.05}))
+}
+
+n_seq = c(seq(5,100,5),seq(125,300,25))
+#nig params
+alpha_seq = c(5,4,3,1)
+beta_seq = c(3,2.5,0,0.5)
+delta_seq = c(1,0.5,0.3,0.1)
+#gamma params
+shape_seq = c(1,3,5,9)
+rate_seq = c(2,2,1,0.5)
+
+#nig
+data_list <-
+  lapply(n_seq, function(n){
+    data.frame(
+      n = n,
+      alpha = alpha_seq,
+      beta = beta_seq,
+      gamma = delta_seq,
+      power = sapply(1:4, function(i) power_nig(n, alpha_seq[i], beta_seq[i], delta_seq[i]))
+      )  
+    })
+data <- do.call(rbind, data_list)
+plot <- ggplot(data = data, aes(x=n,y=power, col = factor(alpha))) +
+  geom_line() + 
+  geom_hline(yintercept=0.05, linetype='dotted') + 
+  geom_hline(yintercept=1, linetype='dotted') +
+  ggtitle(paste("nig")) + labs(col = "Alpha, Beta, Delta") +
+   scale_color_manual(values = c("red", "blue", "green", "black"),
+    labels = c('5 ,3 ,1','4 ,2.5 ,0.5','3, 0, 0.3','1, 0.5, 0.1'))
+print(plot)
+
+#nig pit
+data_list <- NULL
+data <- NULL
+data_list <-
+  lapply(n_seq, function(n){
+    data.frame(
+      n = n,
+      alpha = alpha_seq,
+      beta = beta_seq,
+      gamma = delta_seq,
+      power = sapply(1:4, function(i) power_nig_pit(n, alpha_seq[i], beta_seq[i], delta_seq[i]))
+      )  
+    })
+data <- do.call(rbind, data_list)
+plot <- ggplot(data = data, aes(x=n,y=power, col = factor(alpha))) +
+  geom_line() + 
+  geom_hline(yintercept=0.05, linetype='dotted') + 
+  geom_hline(yintercept=1, linetype='dotted') +
+  ggtitle(paste("nig pit")) + labs(col = "Alpha, Beta, Delta") +
+   scale_color_manual(values = c("red", "blue", "green", "black"),
+    labels = c('5 ,3 ,1','4 ,2.5 ,0.5','3, 0, 0.3','1, 0.5, 0.1'))
+print(plot)
+
+
+#gamma
+data_list <- NULL
+data <- NULL
+data_list <-
+  lapply(n_seq, function(n){
+    data.frame(
+      n = n,
+      shape = shape_seq,
+      rate = rate_seq,
+      power = sapply(1:4, function(i) power_gamma(n, shape_seq[i], rate_seq[i]))
+      )  
+    })
+data <- do.call(rbind, data_list)
+plot <- ggplot(data = data, aes(x=n,y=power, col = factor(shape))) +
+  geom_line() + 
+  geom_hline(yintercept=0.05, linetype='dotted') + 
+  geom_hline(yintercept=1, linetype='dotted') +
+  ggtitle(paste("Gamma")) + labs(col = "Shape, Rate") +
+   scale_color_manual(values = c("red", "blue", "green", "black"),
+    labels = c('1, 2','3, 2','5, 1','0, 0.5'))
+print(plot)
+
+#gamma pit
+data_list <- NULL
+data <- NULL
+data_list <-
+  lapply(n_seq, function(n){
+    data.frame(
+      n = n,
+      shape = shape_seq,
+      rate = rate_seq,
+      power = sapply(1:4, function(i) power_gamma_pit(n, shape_seq[i], rate_seq[i]))
+      )  
+    })
+data <- do.call(rbind, data_list)
+plot <- ggplot(data = data, aes(x=n,y=power, col = factor(shape))) +
+  geom_line() + 
+  geom_hline(yintercept=0.05, linetype='dotted') + 
+  geom_hline(yintercept=1, linetype='dotted') +
+  ggtitle(paste("Gamma PIT")) + labs(col = "Shape, Rate") +
+   scale_color_manual(values = c("red", "blue", "green", "black"),
+    labels = c('1, 2','3, 2','5, 1','0, 0.5'))
+print(plot)
+```
+<br />
+Nie widać róznicy w mocy testu pomiędzy testowaniem z użyciem PIT a bez.
+Testy dobrze się zachowują. Odrzucają prawdziwą hipoteze zerową w około 5% przypadków (czyli ilości równej poziomie istotności)

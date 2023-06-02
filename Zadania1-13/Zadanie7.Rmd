@@ -1,0 +1,65 @@
+---
+title: "Zadanie7"
+author: "Łukasz Pyrek"
+date: "2023-05-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+Zad. 7
+Za pomocą odpowiednich symulacji zbadać moc testu Kołmogorowa-Smirnowa w przypadku, gdy
+rozważane próbki danych pochodzą w rozkładów normalnych o tej samej wartości oczekiwanej, ale o
+różnych odchyleniach standardowych. Rozważyć różne wartości oczekiwane. Uzyskane wyniki należy
+przedstawić na odpowiednich wykresach ilustrujących moce testów z uwzględnieniem:<br />
+- liczby danych (można rozważać różne liczebności w każdej z próbek), <br />
+- odchyleń standardowych.
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(grid)
+power_fun <- function(n, m, s1, s2){
+  mean(
+    sapply(1:100, function(i) {
+      sample1 = rnorm(n, m, s1) 
+      sample2 = rnorm(n, m, s2)
+      ks.test(sample1,sample2)$p.val < 0.05 
+    })
+  )
+}
+
+s1_seq = c(1,2.5,10,25,50)
+s2_seq = c(1,2.5,10,25,50)
+m_seq = c(0,5,25,50,100)
+n_seq = c(seq(5,100,5),seq(125,300,25))
+for(s1 in s1_seq){
+  plots <- c()
+  i = 1
+  for(s2 in s2_seq){
+    if(s1 == s2){next}
+    data_list <- NULL
+    data <- NULL
+    data_list <-
+      lapply(n_seq, function(n){
+        data.frame(
+          n = n,
+          m = m_seq,
+          power = sapply(m_seq, function(m) power_fun(n, m, s1, s2))
+        )  
+      })
+    data <- do.call(rbind, data_list)
+    plots[[i]] <- ggplot(data = data, aes(x=n,y=power, color = factor(m))) +
+      geom_line() + 
+      geom_hline(yintercept=0.05, linetype='dotted') + 
+      geom_hline(yintercept=1, linetype='dotted') +
+      guides(color = FALSE) +
+      ggtitle(paste("Odchylenia standardowe: ",s1,'vs',s2)) + labs(col = "Wartość oczekiwana")
+    i <- i + 1
+  }
+  grid.arrange(plots[[1]],plots[[2]],plots[[3]],plots[[4]], ncol=2)
+}
+
+
+
+```

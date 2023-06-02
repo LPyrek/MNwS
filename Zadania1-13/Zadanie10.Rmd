@@ -1,0 +1,63 @@
+---
+title: "Zadanie10"
+author: "Łukasz Pyrek"
+date: "2023-06-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE)
+```
+Za pomocą odpowiednich symulacji zbadać wpływ liczby klas (na które dzielone są dane) odsetek
+odrzuceń prawdziwej hipotezy głównej (tzn. błąd I rodzaju) w teście 𝜒
+2 w przypadku weryfikacji
+zgodności z rozkładem 𝑡-Studenta o różnych stopniach swobody, tzn. generować dane pochodzące z
+rozkładu 𝑡-Studenta o 𝑘 stopniach swobody i weryfikować hipotezę, że dane mają rozkład 𝑡-Studenta
+o 𝑘 st. swobody. Uzyskane wyniki należy przedstawić na odpowiednich wykresach ilustrujących
+rozmiary testów z uwzględnieniem:
+- liczby danych,
+- liczby klas,
+- liczby stopni swobody generowanego rozkładu.
+
+```{r}
+library(ggplot2)
+library(zoo)
+error_fun <- function(n,df,bins){
+  mean(
+    sapply(1:1000, function(i){
+      sample <- rt(n,df)
+      min_ <- min(sample)
+      max_ <- max(sample)
+      no_of_bins <- bins
+      bin_width <- round((max_-min_)/no_of_bins,10)
+      h <- hist(sample,breaks=c(seq(min_,max_+bin_width,bin_width)), plot = FALSE)
+      breaks_cdf <- pt(h$breaks,df)
+      probs <- rollapply(breaks_cdf, 2, function(x) x[2] - x[1])
+      chisq.test(h$counts, p=probs, rescale.p=TRUE)$p.value < 0.05
+      }))
+}
+
+n_seq = c(seq(5,100,5),seq(125,300,25))
+df_seq = c(3,5,10,30,100)
+bins_seq = c(3,5,10,15,30)
+for(bins in bins_seq){
+  data_list <- NULL
+  data <- NULL
+  data_list <-
+    lapply(n_seq, function(n){
+      data.frame(
+        n = n,
+        df = df_seq,
+        odsetek = sapply(df_seq, function(df) error_fun(n, df, bins))
+      )  
+    })
+  data <- do.call(rbind, data_list)
+  plot <- ggplot(data = data, aes(x=n,y=odsetek, col = factor(df))) +
+    geom_line() + 
+    geom_hline(yintercept=0.05, linetype='dotted') + 
+    geom_hline(yintercept=1, linetype='dotted') +
+    ggtitle(bins) + labs(col = "Stopnie swobody")
+  print(plot)
+}
+
+```
